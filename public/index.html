@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Form with Unique Room</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+    }
+
+    .log {
+      margin-top: 20px;
+      background: #eee;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Submit Action (Unique Session)</h1>
+  <form id="actionForm">
+    <label>Message: <input type="text" name="message" required></label>
+    <input type="hidden" name="roomName" id="roomName" />
+    <button type="submit">Send</button>
+  </form>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    const socket = io();
+    const log = document.getElementById('log');
+
+    // Generate random UUID for the user session
+    let roomName = localStorage.getItem('roomName');
+    if (!roomName) {
+      roomName = crypto.randomUUID();
+      localStorage.setItem('roomName', roomName);
+    }
+
+    document.getElementById('roomName').value = roomName;
+
+    socket.emit('join-room', roomName);
+
+    socket.on('connect', () => {
+      console.log('Reconnected as ', socket.id);
+      socket.emit('join-room', roomName);
+    })
+
+    socket.on('disconnect', (reason) => {
+      console.warn('[socket] Disconnected:', reason);
+    });
+
+    document.getElementById('actionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = e.target.message.value;
+
+      // const response = await axios.get('http://localhost:5003/test');
+      const response = await axios.post('http://localhost:5003/process', {
+        roomName,
+        gitUrl: message,
+      });
+
+      log.innerHTML += `<p>${response.data.message}</p>`;
+    });
+
+    socket.on('engine-update', data => {
+      log.innerHTML += `<p>✅ Feedback: ${JSON.stringify(data, null, 2)}</p>`;
+    });
+  </script>
+</body>
+
+</html>
